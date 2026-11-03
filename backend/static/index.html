@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>RAG Course Tutor</title>
+  <link rel="icon" href="static/favicon.svg">
+  <link rel="stylesheet" href="static/styles.css">
+</head>
+<body>
+<section id="auth-screen" class="auth-screen" hidden>
+  <form id="auth-form" class="auth-card">
+    <span class="auth-mark">RAG</span>
+    <h1 id="auth-title">Dozentenkonto einrichten</h1>
+    <p id="auth-description">Der erste eingerichtete Zugang ist das einzige Konto dieser Installation und verwaltet alle Kurse.</p>
+    <label>Benutzername<input id="auth-username" autocomplete="username" required minlength="3" pattern="[A-Za-z0-9._-]+"></label>
+    <label>Passwort<input id="auth-password" type="password" autocomplete="new-password" required minlength="12"></label>
+    <div class="auth-actions"><button id="auth-cancel" class="secondary-button" type="button">Abbrechen</button><button id="auth-submit" type="submit">Konto einrichten</button></div>
+    <p id="auth-error" class="auth-error"></p>
+  </form>
+</section>
+<main class="app-shell">
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">RAG</span>
+      <div><strong>Course Tutor</strong><span>Quellenbasiertes Lernen</span></div>
+    </div>
+    <div class="topbar-center">
+      <span id="status-dot" class="status-dot"></span><span id="status">Vorschau bereit</span>
+    </div>
+    <div class="topbar-actions"><button id="data-button" class="settings-button" type="button" hidden>Kursdaten</button><button id="settings-button" class="settings-button" type="button" hidden>API-Key <span>⌄</span></button><button id="instructor-button" class="settings-button" type="button">Dozent anmelden</button><button id="logout-button" class="settings-button" type="button" hidden>Abmelden</button></div>
+  </header>
+
+  <section id="connection-panel" class="connection-panel" aria-label="Verbindungseinstellungen" hidden>
+    <div class="connection-heading"><strong>Persönlicher API-Key</strong><span>Zugang zum Modell dieses Kurses</span></div>
+    <label>API-Key<input id="api-key" type="password" autocomplete="off" placeholder="Wird nicht gespeichert"></label>
+    <p class="privacy-note">Der Schlüssel bleibt nur für diese Sitzung im Arbeitsspeicher und wird beim Kurswechsel oder Abmelden gelöscht.</p>
+  </section>
+
+  <section id="data-panel" class="data-panel" hidden>
+    <header><div><strong>Kurse und Wissensbasis</strong><span>Dateien importieren, Chunks prüfen und den Index aktualisieren</span></div><button id="data-close" type="button">×</button></header>
+    <div class="data-toolbar">
+      <label>Aktiver Kurs<select id="course-select"></select></label>
+      <button id="new-course-toggle" type="button">Neuen Kurs anlegen</button>
+      <button id="reindex-button" type="button">Index aktualisieren</button>
+      <button id="delete-course-button" class="danger-button" type="button">Kurs löschen</button>
+    </div>
+    <form id="new-course-form" class="new-course-form" hidden>
+      <input id="new-course-name" required placeholder="Kursname">
+      <input id="new-course-description" placeholder="Kurze Beschreibung">
+      <input id="new-course-role" value="Lernbegleiter für Studierende" placeholder="Rolle des Tutors">
+      <button type="submit">Kurs erstellen</button>
+    </form>
+    <form id="course-settings-form" class="course-settings-form">
+      <h2>Tutor-Einstellungen für diesen Kurs</h2>
+      <div class="settings-grid">
+        <label>Arbeitsweise<select id="teacher-mode"><option value="direct">Normaler Chatbot · Erklären</option><option value="socratic">Sokratischer Tutor · Hinweise und Leitfragen</option></select></label>
+        <label>Anbindung<select id="provider"><option value="openai-compatible">OpenAI-kompatible API / OpenWebUI</option><option value="ollama">Ollama direkt</option></select></label>
+        <label>Server / API-URL<input id="provider-url" type="url" required></label>
+        <label>Zugang<select id="auth-mode"><option value="student">Persönlicher API-Key der Teilnehmer</option><option value="none">Ohne API-Key</option></select></label>
+        <label>Modell<input id="model" required value="UFR: Standard Coding"><select id="model-select" hidden></select></label>
+        <label>API-Key zum Abrufen der Modellliste<input id="teacher-api-key" type="password" autocomplete="off" placeholder="Nur für diese Sitzung"></label>
+        <label>Top-k · maximale Quellenanzahl<input id="top-k" type="number" min="1" max="20" value="2" required></label>
+        <label>Temperatur<input id="temperature" type="number" min="0" max="2" step="0.1" value="0" required></label>
+        <label>Maximale Antworttokens<input id="max-tokens" type="number" min="64" max="32768" value="1024" required></label>
+        <label>Vorherige Nachrichten im Kontext<input id="history-messages" type="number" min="0" max="20" value="10" required></label>
+      </div>
+      <p>Ollama: z. B. http://localhost:11434 (ohne /api). OpenAI-kompatibel: vollständige API-Basis, z. B. https://openwebui.uni-freiburg.de/api. Die Adresse muss vom Tutor-Backend erreichbar sein.</p>
+      <button id="models-button" type="button">Modelle abrufen</button>
+      <button type="submit">Einstellungen dauerhaft speichern</button>
+      <p id="settings-status" role="status"></p>
+      <label>Teilnehmerlink<input id="student-link" readonly></label>
+    </form>
+    <form id="upload-form" class="upload-form">
+      <label><strong>Material hinzufügen</strong><span>PDF, Markdown, TXT, HTML oder TEX · maximal 25 MB je Datei</span></label>
+      <input id="document-file" type="file" multiple accept=".pdf,.md,.markdown,.txt,.html,.htm,.tex" required>
+      <button type="submit">Extrahieren und chunken</button>
+    </form>
+    <div class="chunk-heading"><div><strong>Chunk-Prüfung</strong><span id="chunk-summary">Noch nicht geladen</span></div><input id="chunk-filter" placeholder="Chunks durchsuchen …"></div>
+    <div id="chunk-list" class="chunk-list"></div>
+    <p id="data-status" class="data-status"></p>
+  </section>
+
+  <div class="workspace">
+    <aside class="course-rail">
+      <label class="course-label" for="student-course-select">Aktiver Kurs</label><select id="student-course-select" aria-label="Kurs auswählen"></select>
+      <h1 id="course-name">Kurs wird geladen</h1>
+      <p id="course-description"></p>
+      <nav id="module-list" class="module-list" aria-label="Kursbereiche"></nav>
+      <div id="course-index" class="course-index"><span>Kursindex</span></div>
+    </aside>
+
+    <section class="tutor-column">
+      <div class="modebar">
+        <strong id="mode-label">Erklärender Tutor</strong>
+        <div class="modebar-actions">
+          <button id="clear-button" class="clear-button" type="button">Neue Sitzung</button>
+          <label class="language-select">Sprache
+            <select id="language"><option value="auto">automatisch</option><option value="de">Deutsch</option><option value="en">English</option></select>
+          </label>
+        </div>
+      </div>
+      <div id="conversation" class="conversation" aria-live="polite"></div>
+      <div id="suggestions" class="suggestions">
+        <button type="button"><span>↗</span>Was sind die wichtigsten Inhalte dieses Kurses?</button>
+        <button type="button"><span>↗</span>Erkläre mir ein zentrales Konzept aus dem Material.</button>
+        <button type="button"><span>↗</span>Stelle mir eine Verständnisfrage zum ersten Themenbereich.</button>
+        <button type="button"><span>↗</span>Wobei sollte ich beim Lernen besonders aufpassen?</button>
+      </div>
+      <form id="composer" class="composer">
+        <textarea id="input" rows="2" placeholder="Frage zum aktiven Kurs stellen …"></textarea>
+        <div class="composer-footer"><span id="provider-label">Hochschul-API · Schlüssel erforderlich</span><button id="send-button" disabled type="submit" aria-label="Nachricht senden">↑</button></div>
+      </form>
+    </section>
+
+    <aside class="evidence-panel">
+      <div class="evidence-header"><span>Nachweise</span><strong id="evidence-count">Noch keine Suche</strong></div>
+      <div id="empty-evidence" class="empty-evidence"><span>§</span><p>Nach deiner ersten Frage erscheinen hier die verwendeten Kursabschnitte.</p></div>
+      <div id="source-stack" class="source-stack" hidden></div>
+      <div class="diagnostic"><span>Diagnose</span><dl>
+        <div><dt>Chunks</dt><dd id="chunk-count">–</dd></div>
+        <div><dt>Retrieval</dt><dd id="retrieval-label">BM25</dd></div>
+        <div><dt>Top-k</dt><dd id="top-k-label">2</dd></div>
+      </dl></div>
+    </aside>
+  </div>
+</main>
+<script src="static/app.js" defer></script>
+</body>
+</html>

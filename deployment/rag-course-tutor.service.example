@@ -1,0 +1,19 @@
+[Unit]
+Description=RAG Course Tutor
+After=network-online.target
+
+[Service]
+Type=simple
+User=rag-tutor
+Group=rag-tutor
+WorkingDirectory=/opt/rag-course-tutor
+EnvironmentFile=/opt/rag-course-tutor/.env
+ExecStart=/opt/rag-course-tutor/.venv/bin/uvicorn backend.main:app --host 127.0.0.1 --port 8000 --proxy-headers --forwarded-allow-ips 127.0.0.1
+Restart=on-failure
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/opt/rag-course-tutor/data
+
+[Install]
+WantedBy=multi-user.target
