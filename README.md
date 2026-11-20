@@ -117,3 +117,13 @@ Die Tests prüfen Konto, öffentliche Nutzung, Verwaltung, Upload, Retrieval,
 Validierung, Persistenz, serverseitige Durchsetzung der Einstellungen und die
 HTTP-Anfrageformate für Ollama und OpenAI-kompatible APIs mit simulierten Antworten.
 Ein echter Modellaufruf muss mit dem jeweiligen Server vor Ort geprüft werden.
+
+## License
+
+This project is licensed under the MIT License.
+See the [LICENSE](LICENSE) file for details.
+
+## About
+
+This software was developed as part of the
+"RAG in Teaching" project at the University of Freiburg.
